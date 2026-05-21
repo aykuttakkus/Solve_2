@@ -1,0 +1,22 @@
+{
+  "normal": {
+    "FileName": "CR32a95e6-CR3dcad12-000058.avi",
+    "EF": 60.97,
+    "Sex": "F",
+    "Age": 13,
+    "Weight": 44.4,
+    "Height": 163.0,
+    "Split": 9,
+    "distance": 0.030000000000001137
+  },
+  "dysfunction": {
+    "FileName": "CR32a95ef-CR32a97b8-000040.avi",
+    "EF": 21.95,
+    "Sex": "M",
+    "Age": 0,
+    "Weight": 4.0,
+    "Height": 56.0,
+    "Split": 7,
+    "distance": 0.3000000000000007
+  }
+}

@@ -1,0 +1,39 @@
+# ─── Veri & ağır artefaktlar (GitHub 100MB sınırı) ───
+data/
+Labs/
+results/checkpoints/
+demo/
+
+# ─── Python ───
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+
+# ─── Virtual environments ───
+.venv/
+venv/
+env/
+ENV/
+
+# ─── Jupyter ───
+.ipynb_checkpoints/
+
+# ─── IDE / Editor / OS ───
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+Thumbs.db
+
+# ─── Claude Code (kişisel ayarlar, mutlak path sızdırır) ───
+.claude/
+CLAUDE.md.local
+
+# ─── Geçici / log ───
+*.log
+*.tmp
+*.bak
