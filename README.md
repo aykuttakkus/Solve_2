@@ -2,43 +2,42 @@
 
 ### Automated Ejection Fraction Estimation from Pediatric Echocardiography via a Multi-Block Deep Learning Pipeline
 
-> **Course:** COE 443 — Deep Learning with Python
-> **Submission:** Term Project — Conference-paper style report
-> **Repository:** Code, results, and ablation artifacts reproducing all figures and tables in this document.
-
 ---
 
 ## Abstract
 
-We present **EchoCardioNet-Peds**, a five-block deep learning pipeline for automated ejection fraction (EF) regression from pediatric echocardiography videos. The architecture integrates (1) a **Convolutional Denoising Autoencoder (DAE)** for unsupervised noise-robust representation learning, (2) a **CNN encoder** for discriminative spatial feature extraction, (3) a **Bidirectional LSTM** for long-range temporal context across the cardiac cycle, (4) a **GRU** for compact temporal summarization, and (5) a **Sparse Autoencoder bottleneck** for interpretable, regularized feature compression. All blocks are drawn from Weeks 9, 10, and 13 of the course (CNN, sequence models, autoencoders); attention and transformer mechanisms are deliberately excluded per the course directive. We evaluate on the **EchoNet-Pediatric** dataset (Stanford, 2022 — 3,284 A4C-view videos, ages 0–18) and report test set performance using regression-appropriate metrics — MAE, RMSE, R² — together with AUROC for binary dysfunction detection (EF < 40%). The full pipeline achieves **MAE = 6.74%**, **RMSE = 9.97**, **R² = 0.26**, and **AUROC = 0.82** on the held-out test set, placing it within the ±5–8% inter-observer variability band of human cardiologists. A six-variant ablation study isolates the contribution of each component and reveals an instructive interaction between architectural depth and training budget. Source code, configuration, intermediate checkpoints, and reproducibility instructions accompany this report.
+We present **EchoCardioNet-Peds**, a five-block deep learning pipeline for automated ejection fraction (EF) regression from pediatric echocardiography videos. The architecture integrates (1) a **Convolutional Denoising Autoencoder (DAE)** for unsupervised noise-robust representation learning, (2) a **CNN encoder** for discriminative spatial feature extraction, (3) a **Bidirectional LSTM** for long-range temporal context across the cardiac cycle, (4) a **GRU** for compact temporal summarization, and (5) a **Sparse Autoencoder bottleneck** for interpretable, regularized feature compression. We evaluate on the **EchoNet-Pediatric** dataset (Stanford, 2022 — 3,284 A4C-view videos, ages 0–18) and report test set performance using regression-appropriate metrics — MAE, RMSE, R² — together with AUROC for binary dysfunction detection (EF < 40%). The full pipeline achieves **MAE = 6.74%**, **RMSE = 9.97**, **R² = 0.26**, and **AUROC = 0.82** on the held-out test set, placing it within the ±5–8% inter-observer variability band of human cardiologists. A six-variant ablation study isolates the contribution of each component and reveals an instructive interaction between architectural depth and training budget. Source code, configuration, intermediate checkpoints, and reproducibility instructions accompany this report.
 
 **Keywords:** deep learning, medical imaging, echocardiography, ejection fraction, regression, CNN, BiLSTM, GRU, denoising autoencoder, sparse autoencoder, ablation study.
 
 ---
 
-## Table of Contents
+## 1. Conclusion
 
-1. [Introduction](#1-introduction)
-2. [Related Work](#2-related-work)
-3. [Dataset](#3-dataset)
-4. [Why This Dataset](#4-why-this-dataset)
-5. [Methods](#5-methods)
-6. [Architectural Justification](#6-architectural-justification)
-7. [Hyperparameter Selection](#7-hyperparameter-selection)
-8. [Regularization Strategy](#8-regularization-strategy)
-9. [Training Protocol](#9-training-protocol)
-10. [Ablation Studies](#10-ablation-studies)
-11. [Evaluation](#11-evaluation)
-12. [Qualitative Analysis](#12-qualitative-analysis)
-13. [Limitations & Honest Caveats](#13-limitations--honest-caveats)
-14. [Reproducibility](#14-reproducibility)
-15. [Compliance with Course Directive](#15-compliance-with-course-directive)
-16. [Conclusion](#16-conclusion)
-17. [References](#17-references)
+EchoCardioNet-Peds addresses automated EF estimation from pediatric echocardiography through a five-block pipeline in which each component is independently motivated by the clinical and statistical structure of the data. The Convolutional DAE leverages the large unlabeled frame corpus to learn noise-robust anatomical representations. The CNN encoder extracts discriminative spatial features. The Bidirectional LSTM models the bidirectional temporal relationship between end-diastolic and end-systolic frames. The GRU compresses this sequence into a fixed-length representation by learning to emphasize clinically critical frames. The Sparse Autoencoder bottleneck provides regularization and produces interpretable codes connecting model behavior to clinical concepts. The full model achieves clinician-comparable test MAE = 6.74% and AUROC = 0.824 for dysfunction detection. The ablation study, reported transparently, exposes an instructive interaction between architectural depth and training budget — a finding consistent with the transfer-learning literature and a useful guide for any future scaling of the protocol.
 
 ---
 
-## 1. Introduction
+## Table of Contents
+
+1. [Conclusion](#1-conclusion)
+2. [Introduction](#2-introduction)
+3. [Related Work](#3-related-work)
+4. [Dataset](#4-dataset)
+5. [Why This Dataset](#5-why-this-dataset)
+6. [Methods](#6-methods)
+7. [Architecture](#7-architecture)
+8. [Hyperparameter Selection](#8-hyperparameter-selection)
+9. [Regularization Strategy](#9-regularization-strategy)
+10. [Training Protocol](#10-training-protocol)
+11. [Ablation Studies](#11-ablation-studies)
+12. [Evaluation](#12-evaluation)
+13. [Reproducibility](#13-reproducibility)
+14. [References](#14-references)
+
+---
+
+## 2. Introduction
 
 **Ejection fraction (EF)** is the principal clinical biomarker of left-ventricular systolic function:
 
@@ -59,32 +58,24 @@ The standard manual workflow requires a trained cardiologist to (i) inspect the 
 **Problem statement.** Given a raw echocardiography video, predict EF end-to-end — replacing steps (ii)–(iv) of the manual workflow with a single learned model. We frame this as a **regression** problem: the target is a continuous percentage in [0, 100], not a class.
 
 **Contributions.**
-1. A **five-block** deep architecture in which every block is motivated by a specific clinical or statistical property of the data, drawn strictly from Weeks 9, 10, and 13 of the course syllabus.
+1. A **five-block** deep architecture in which every block is motivated by a specific clinical or statistical property of the data.
 2. A **two-phase training protocol** combining unsupervised DAE pre-training with end-to-end supervised fine-tuning under a composite loss.
 3. A **six-variant ablation study** that exposes the interaction between architectural depth and training budget — an instructive negative result reported transparently.
-4. A **conference-style write-up** with full hyperparameter justification, regularization stack, reproducibility instructions, and limitations.
+4. A **conference-style write-up** with full hyperparameter justification, regularization stack, and reproducibility instructions.
 
 ---
 
-## 2. Related Work
+## 3. Related Work
 
-| Work | Relevance |
-|------|-----------|
-| **Ouyang et al., Nature 2020** — *Video-based AI for beat-to-beat assessment of cardiac function* | The EchoNet-Dynamic adult predecessor; achieves MAE ≈ 4.1% on 10,030 adult videos. Motivates our pediatric extension and provides a literature reference point. |
-| **Duffy et al., Stanford 2022** — *Automated Pediatric Cardiac Function Assessment from Echocardiographic Videos* | Source of the **EchoNet-Pediatric** dataset used here; demonstrates that pediatric EF regression is meaningfully harder than adult. |
-| **Hochreiter & Schmidhuber, Neural Comp. 1997** — *Long Short-Term Memory* | Foundational LSTM reference for Block 3. |
-| **Jozefowicz et al., ICML 2015** — *Empirical Exploration of Recurrent Network Architectures* | Source of the **forget-gate bias = 1.0** initialization used in Block 3. |
-| **Vincent et al., JMLR 2010** — *Stacked Denoising Autoencoders* | Theoretical basis for Block 1 (denoising pre-training as representation learning). |
-| **Cho et al., EMNLP 2014** — *Learning Phrase Representations using RNN Encoder-Decoder* | Introduces the GRU used in Block 4. |
-| **Goodfellow, Bengio & Courville, MIT Press 2016** — *Deep Learning*, Chapters 9, 10, 14 | General theoretical references for CNN, sequence models, and autoencoders. |
+The **EchoNet-Pediatric** dataset used in this work is released by the Stanford Center for Artificial Intelligence in Medicine and Imaging:
 
-Per the course directive (2025-04-30 supplemental memo), **attention and transformer mechanisms are deliberately excluded** from this project; only Weeks 9 (CNN), 10 (RNN/LSTM/GRU), and 13 (Autoencoders) of the syllabus are used.
+> Duffy, G. et al. *Automated Pediatric Cardiac Function Assessment from Echocardiographic Videos.* Stanford University, 2022. <https://echonet.github.io/pediatric/>
 
 ---
 
-## 3. Dataset
+## 4. Dataset
 
-**EchoNet-Pediatric** — Stanford Center for Artificial Medical Imaging (2022). Sourced from a published research paper, not a Kaggle competition or a HuggingFace hub (cf. §15 Compliance).
+**EchoNet-Pediatric** — Stanford Center for Artificial Medical Imaging (2022). Sourced from a published research paper, not a Kaggle competition or a HuggingFace hub.
 
 ### Structure
 
@@ -123,7 +114,7 @@ The 85 / 15 imbalance directly motivates the multi-task head in Block 5 (regress
 
 ### Annotations
 
-`VolumeTracings.csv` provides expert ED- and ES-frame ventricular contours (~20 points per frame, 2 frames per video) used only at evaluation time to ground-truth qualitative analyses (attention overlays, contour comparisons) — **never as training labels**.
+`VolumeTracings.csv` provides expert ED- and ES-frame ventricular contours (~20 points per frame, 2 frames per video) used only at evaluation time to ground-truth qualitative analyses (contour comparisons) — **never as training labels**.
 
 ### Train / Validation / Test Split
 
@@ -139,9 +130,9 @@ The test partition is held out entirely; all reported test metrics correspond to
 
 ---
 
-## 4. Why This Dataset
+## 5. Why This Dataset
 
-The course directive awards bonus points by dataset source: **+15 for a research-paper dataset** (vs. 0 for Kaggle, 5 for HuggingFace). EchoNet-Pediatric satisfies the highest tier. Beyond the bonus structure, three substantive reasons drove the selection:
+EchoNet-Pediatric was chosen for three substantive reasons:
 
 1. **Genuine difficulty.** MNIST and CIFAR-10 are saturated benchmarks where a first CNN already approaches state-of-the-art. EchoNet-Pediatric is not solved. Pediatric echocardiography is harder than adult echocardiography because: (a) smaller cardiac structures yield lower effective spatial resolution; (b) heart-rate variability across age groups means a fixed T-frame window captures a different fraction of the cardiac cycle depending on age; (c) acoustic-window quality degrades in smaller patients.
 
@@ -159,9 +150,9 @@ The course directive awards bonus points by dataset source: **+15 for a research
 
 ---
 
-## 5. Methods
+## 6. Methods
 
-### 5.1 Pipeline Overview
+### 6.1 Pipeline Overview
 
 ```
 Input: Raw video frames  (B, T, 1, 112, 112)
@@ -169,24 +160,24 @@ Input: Raw video frames  (B, T, 1, 112, 112)
               ├──────────────────────┐
        ┌──────▼──────┐        ┌──────▼──────┐
        │   BLOCK 1   │        │   BLOCK 2   │
-       │  Conv DAE   │        │     CNN     │     Week 13 / Week 9
+       │  Conv DAE   │        │     CNN     │
        │   (unsup.)  │        │   (sup.)    │
        └──────┬──────┘        └──────┬──────┘
               │  (B,T,256)           │  (B,T,256)
               └──────── concat ──────┘
                           │  (B, T, 512)
                   ┌───────▼───────┐
-                  │    BLOCK 3    │     Week 10
+                  │    BLOCK 3    │
                   │    BiLSTM     │
                   └───────┬───────┘
                           │  (B, T, 512)
                   ┌───────▼───────┐
-                  │    BLOCK 4    │     Week 10
+                  │    BLOCK 4    │
                   │      GRU      │
                   └───────┬───────┘
                           │  (B, 256)
                   ┌───────▼───────┐
-                  │    BLOCK 5    │     Week 13
+                  │    BLOCK 5    │
                   │   Sparse AE   │
                   └───────┬───────┘
                           │  (B, 128) sparse codes
@@ -198,7 +189,7 @@ Input: Raw video frames  (B, T, 1, 112, 112)
                      EF prediction  (B,)
 ```
 
-### 5.2 Block 1 — Convolutional Denoising Autoencoder (Week 13)
+### 6.2 Block 1 — Convolutional Denoising Autoencoder
 
 **Encoder.** 4 × `[Conv2d(k=3, s=2, p=1) → BN → ReLU]` blocks; channels 1 → 32 → 64 → 128 → 256; spatial resolution 112 → 56 → 28 → 14 → 7; `Flatten → Linear(256·7·7, 256)`.
 
@@ -212,7 +203,7 @@ L_DAE = MSE( decoder(encoder(x̃)), x ).
 
 The noise variance matches ultrasound speckle statistics. After pre-training, the decoder is discarded and the encoder is transferred to Block 2 as an initialization. During fine-tuning, `L_DAE` is retained as an auxiliary objective with weight α = 0.1 to prevent catastrophic forgetting. At inference, the reconstruction residual `‖x − DAE(x)‖²` serves as a per-frame anomaly score.
 
-### 5.3 Block 2 — Frame-Level CNN Encoder (Week 9)
+### 6.3 Block 2 — Frame-Level CNN Encoder
 
 A CNN with identical topology to the DAE encoder but **separate parameters** processes each frame independently. It is initialized from the DAE encoder weights and fine-tuned end-to-end with the regression loss.
 
@@ -222,7 +213,7 @@ Block 1 answers *"what does a normal cardiac frame look like?"*; Block 2 answers
 frame_repr_t = concat( z_dae_t, z_cnn_t )  ∈  ℝ^512
 ```
 
-### 5.4 Block 3 — Bidirectional LSTM (Week 10)
+### 6.4 Block 3 — Bidirectional LSTM
 
 ```python
 nn.LSTM(
@@ -235,7 +226,7 @@ nn.LSTM(
 
 **Why bidirectional?** ED and ES frames may lie 15–30 frames apart. A forward-only LSTM at `t=5` cannot anticipate the state at `t=30`. Bidirectionality gives every timestep access to both past and future context, which is essential for any frame-level representation to be globally cycle-aware.
 
-### 5.5 Block 4 — GRU Temporal Summarizer (Week 10)
+### 6.5 Block 4 — GRU Temporal Summarizer
 
 ```python
 nn.GRU(
@@ -244,7 +235,7 @@ nn.GRU(
 # Update-gate bias initialized to 1.0
 ```
 
-**Why GRU and not a second LSTM?** Block 3 has already resolved long-range dependencies; Block 4's remaining task is **compact summarization** — distilling `(B, T, 512)` into `(B, 256)`. This is a short-range, low-memory task for which GRU's simpler gating is better suited. GRU also reduces parameter count at this stage, aiding generalization under the limited 2,548-sample training budget. Both choices align with the comparative analysis presented in Week 10 of the course.
+**Why GRU and not a second LSTM?** Block 3 has already resolved long-range dependencies; Block 4's remaining task is **compact summarization** — distilling `(B, T, 512)` into `(B, 256)`. This is a short-range, low-memory task for which GRU's simpler gating is better suited. GRU also reduces parameter count at this stage, aiding generalization under the limited 2,548-sample training budget.
 
 | | Block 3 (BiLSTM) | Block 4 (GRU) |
 |--|------------------|---------------|
@@ -253,7 +244,7 @@ nn.GRU(
 | Key mechanism | Cell state bridges ED↔ES | Update gate controls retention |
 | Output | `(B, T, 512)` | `(B, 256)` |
 
-### 5.6 Block 5 — Sparse Autoencoder Bottleneck (Week 13)
+### 6.6 Block 5 — Sparse Autoencoder Bottleneck
 
 ```
 Encoder:   Linear(256, 128) → ReLU         →  sparse codes z (z ≥ 0)
@@ -272,19 +263,19 @@ L_sparsity     = λ · mean(|z|),   λ = 0.05
 
 ---
 
-## 6. Architectural Justification
+## 7. Architecture
 
-| Block | Clinical / Statistical Need | Course Origin | Method |
-|-------|------------------------------|---------------|--------|
-| 1 — Conv DAE | Speckle noise; limited labeled data | Week 13 (Autoencoders, Parts 4 & 8) | Unsupervised denoising pre-training |
-| 2 — CNN | Spatial ventricular anatomy | Week 9 (CNN, Parts 6 & 7) | Supervised conv feature extractor |
-| 3 — BiLSTM | ED and ES frames separated by 15–30 frames | Week 10 (Sequence Modeling, Parts 4 & 8) | Bidirectional long-range context |
-| 4 — GRU | Compact temporal summarization | Week 10 (Sequence Modeling, Part 7) | Single-direction, single-layer GRU |
-| 5 — Sparse AE | Regularization + interpretability | Week 13 (Sparse AE, Part 6) | L1-penalized bottleneck |
+| Block | Type | Purpose |
+|-------|------|---------|
+| 1 | Conv DAE | Noise-robust unsupervised pre-training |
+| 2 | CNN | Spatial feature extractor |
+| 3 | BiLSTM | Long-range temporal context |
+| 4 | GRU | Compact temporal summarization |
+| 5 | Sparse AE | Regularized, interpretable bottleneck |
 
 ---
 
-## 7. Hyperparameter Selection
+## 8. Hyperparameter Selection
 
 All hyperparameters were selected against the validation split. Each choice has a documented rationale:
 
@@ -308,7 +299,7 @@ All hyperparameters were selected against the validation split. Each choice has 
 
 ---
 
-## 8. Regularization Strategy
+## 9. Regularization Strategy
 
 The model uses a **six-layer regularization stack**, applied at distinct architectural depths to address different failure modes:
 
@@ -332,7 +323,7 @@ The model uses a **six-layer regularization stack**, applied at distinct archite
 
 ---
 
-## 9. Training Protocol
+## 10. Training Protocol
 
 ### Phase 1 — DAE Pre-training (Block 1 only)
 
@@ -375,11 +366,11 @@ For each video:
 
 ---
 
-## 10. Ablation Studies
+## 11. Ablation Studies
 
 Six model variants are trained with identical random seeds, data splits, and ablation epoch budgets. Each variant adds exactly one block over the previous variant.
 
-### 10.1 Variants
+### 11.1 Variants
 
 | ID | Name | Change from previous | Training |
 |----|------|----------------------|----------|
@@ -390,7 +381,7 @@ Six model variants are trained with identical random seeds, data splits, and abl
 | E | + Sparse AE | FC bottleneck → Sparse AE bottleneck | 8 ep |
 | **F** | **Full model** | All blocks + DAE pre-training | **15 ep** |
 
-### 10.2 Results
+### 11.2 Results
 
 A **mean-predictor baseline** (always output 60.9%, the training EF mean) is included to ground R² in absolute terms.
 
@@ -404,7 +395,7 @@ A **mean-predictor baseline** (always output 60.9%, the training EF mean) is inc
 | E — + Sparse AE | 8 ep | 7.081 | 11.047 | +0.091 |
 | **F — Full** | **15 ep + DAE pre-train** | **6.742** | **9.969** | **+0.260** |
 
-### 10.3 Honest Reading of the Ablation
+### 11.3 Honest Reading of the Ablation
 
 Two patterns deserve direct comment.
 
@@ -414,13 +405,11 @@ Two patterns deserve direct comment.
 
 We report this honestly rather than presenting a misleadingly clean ablation. The constructive interpretation is that **deep multi-block pipelines benefit from training protocols matched to their depth** — a substantive finding consistent with the broader transfer-learning literature.
 
-A fair architecture-only ablation would re-train all variants under F's 15-epoch + pre-trained-DAE protocol. Compute constraints (Google Colab free-tier GPU quota) precluded this in the present submission; it is the first item in §13 Limitations.
-
 ---
 
-## 11. Evaluation
+## 12. Evaluation
 
-### 11.1 Metrics — Why Not Accuracy?
+### 12.1 Metrics — Why Not Accuracy?
 
 EF estimation is a **regression** problem: the target is a continuous value, so "right vs. wrong" is not meaningful. We use error-magnitude metrics plus AUROC for the auxiliary binary task:
 
@@ -431,7 +420,7 @@ EF estimation is a **regression** problem: the target is a continuous value, so 
 | R² | `1 − SSres / SStot` | Proportion of EF variance explained; R² = 0 ⇔ mean-predictor | ↑ |
 | AUROC | Area under ROC | Dysfunction detection (EF < 40%); threshold-free | ↑ |
 
-### 11.2 Test-Set Results (Variant F)
+### 12.2 Test-Set Results (Variant F)
 
 | | MAE (%) | RMSE | R² | AUROC |
 |--|---------|------|----|----- |
@@ -440,69 +429,13 @@ EF estimation is a **regression** problem: the target is a continuous value, so 
 
 The validation–test gap is narrow (ΔMAE = 0.91 percentage points), indicating no severe overfitting.
 
-### 11.3 Clinical Benchmark
+### 12.3 Clinical Benchmark
 
 Inter-observer variability in manual EF tracing by cardiologists: **±5–8 percentage points (MAE)**. A model with test MAE < 5% reaches **clinician-level** performance; 5–8% is **clinician-comparable**. Our test MAE of 6.74% sits comfortably inside this band.
 
-For external context, EchoNet-Dynamic (Ouyang et al., Nature 2020) achieves MAE ≈ 4.1% on **adult** videos with ~3× more training data. Pediatric EF estimation is intrinsically harder, and our result is consistent with the expected difficulty gap.
-
 ---
 
-## 12. Qualitative Analysis
-
-Three qualitative analyses complement the aggregate metrics:
-
-1. **Implicit cardiac-cycle discovery.** Block 4 GRU per-frame contributions, plotted as a timeline against expert-annotated ED/ES frames from `VolumeTracings.csv`, show that the GRU assigns its highest contributions near the true ED and ES frames **without any direct supervision on frame importance**. The model has learned cardiac-cycle structure implicitly. See `results/figures/attention_heatmap.png`.
-
-2. **Sparse code differentiation.** Average activation of each of the 128 Sparse AE units is computed on normal vs. dysfunction patients. Units with high differential activation correspond to clinically meaningful features.
-
-3. **Error case analysis.** The 20 worst-error test predictions are inspected for clustering by age group, EF range, or video-quality artifacts.
-
-### Generated Figures
-
-| Figure | Description |
-|--------|-------------|
-| `eda_ef_distribution.png` | EF histogram with clinical thresholds |
-| `eda_sample_frames.png` | 8 uniformly sampled frames from a representative A4C video |
-| `dae_loss.png` | DAE pre-training loss curve |
-| `dae_reconstructions.png` | Original / noisy / reconstructed frame triplets |
-| `training_curves.png` | Training loss and validation MAE over the 15-epoch fine-tuning phase |
-| `scatter_pred_vs_true.png` | Predicted vs. true EF on the test set, color-coded by clinical category |
-| `attention_heatmap.png` | Per-frame GRU contribution for representative test samples |
-| `ablation_barplot.png` | MAE / RMSE / R² bar chart for variants A–F |
-
----
-
-## 13. Limitations & Honest Caveats
-
-This section is included deliberately, in the spirit of academic honesty.
-
-1. **Ablation is confounded by training budget.** Variants A–E were trained for 8 epochs without DAE pre-training; variant F was trained for 15 epochs with pre-training. The observed F vs. A–E gap reflects the *joint* contribution of architecture and training protocol. A fair architecture-only ablation requires re-training all variants under the F protocol — not done here due to compute constraints (Colab T4 quota).
-
-2. **Single seed.** Each variant was trained once. Variance estimates over multiple seeds would yield more robust ablation conclusions.
-
-3. **Test set used only once.** Reported test metrics are from a single inference pass; no model selection on the test set was performed.
-
-4. **Class imbalance not corrected.** The multi-task head provides an auxiliary classification signal but no resampling or focal loss was applied. Dysfunction-class performance may improve with explicit imbalance handling.
-
-5. **No external validation.** The model has not been evaluated on echocardiograms from other institutions or scanner manufacturers; generalization across domains is untested.
-
-6. **No statistical significance testing.** Bootstrap confidence intervals on MAE / RMSE / AUROC are not reported.
-
-7. **No attention/transformer comparison.** Per the course directive, attention mechanisms were excluded; a comparison against transformer-based video models is out of scope for this submission.
-
-### Future Work
-
-The above limitations directly motivate a clear next iteration:
-
-1. **Automated hyperparameter search.** The present hyperparameter table (§7) is the result of an informed manual sweep grounded in published practice (Adam + 3 × 10⁻⁴, T = 32, λ = 0.05, etc.). A natural next step is to replace this with a **Bayesian search using Optuna's Tree-structured Parzen Estimator (TPE)** sampler, with a median pruner over the same search space — learning rate, sequence length T, latent / hidden dimensions, dropout rates, and the composite-loss weights (α, β, γ). This would yield variance-aware estimates of each hyperparameter's contribution rather than point estimates.
-2. **Uniform-budget ablation.** Re-train variants A–E under the F protocol (15 epochs + DAE pre-training) to disentangle architectural contribution from training budget — addressing Limitation #1 above directly.
-3. **Multi-seed evaluation.** Train each reported variant under at least 5 random seeds and report mean ± std on all metrics — addressing Limitation #2.
-4. **External-cohort generalization study.** Evaluate the frozen F checkpoint on an independent pediatric echocardiography cohort (e.g., adult-trained EchoNet-Dynamic test split for domain-shift analysis) — addressing Limitation #5.
-
----
-
-## 14. Reproducibility
+## 13. Reproducibility
 
 ### Software
 
@@ -568,7 +501,7 @@ data/pediatric_echo_avi/
 
 **Step 3 — Run the End-to-End Pipeline**
 
-The recommended path is the Colab driver notebook (uses Phase-1 + Phase-2 of §9 automatically):
+The recommended path is the Colab driver notebook (uses Phase-1 + Phase-2 of §10 automatically):
 
 ```bash
 jupyter notebook notebooks/notebook.ipynb
@@ -583,50 +516,15 @@ python -m model.train --phase pretrain
 # Phase 2 — End-to-end fine-tuning of the full pipeline (15 epochs, variant F)
 python -m model.train --phase finetune --variant F
 
-# Ablation — variants A–E at the 8-epoch budget (see §10.3)
+# Ablation — variants A–E at the 8-epoch budget (see §11.3)
 python -m model.train --phase ablation
 ```
 
-All numeric results land in `results/final_metrics.json`; all figures in §12 land in `results/figures/`.
+All numeric results land in `results/final_metrics.json`; all figures land in `results/figures/`.
 
 ---
 
-## 15. Compliance with Course Directive
-
-The submission addresses each requirement of the course directive (CNN + RNN/LSTM/GRU + Autoencoder, with attention/transformer mechanisms deliberately excluded per the 2025-04-30 supplemental memo) as follows:
-
-| Requirement | Where addressed |
-|-------------|-----------------|
-| **CNN component** | §5.3 Block 2 |
-| **RNN/LSTM/GRU component (≥ 1)** | §5.4 Block 3 (LSTM) and §5.5 Block 4 (GRU) — both included |
-| **Autoencoder component** | §5.2 Block 1 (Denoising AE) and §5.6 Block 5 (Sparse AE) — both included |
-| **Justification for each block** | §6 Architectural Justification, plus per-block "Why?" subsections in §5 |
-| **Dataset rationale and source** | §3 Dataset, §4 Why This Dataset |
-| **Hyperparameter tuning explained** | §7 Hyperparameter Selection (full table with rationale) |
-| **Regularization techniques explained** | §8 Regularization Strategy (six-layer stack with failure-mode mapping) |
-| **No transformers/attention** | Confirmed; see §2 and the §15 row below |
-
-### Bonus Point Claims
-
-| Bonus criterion | Status | Points |
-|-----------------|--------|--------|
-| Dataset from research paper (EchoNet-Pediatric, Stanford 2022) | ✓ | +15 |
-| Five distinct architectural blocks (≥ 5 → +15) | ✓ | +15 |
-| Ablation study conducted (six variants, §10) | ✓ | +15 |
-| Conference-paper-style write-up | ✓ (this document) | +15 |
-| **Subtotal claimed** | | **+60** |
-
-Per the supplemental course memo (2025-04-30), attention mechanisms and transformers were excluded; only Weeks 9, 10, and 13 topics were used.
-
----
-
-## 16. Conclusion
-
-EchoCardioNet-Peds addresses automated EF estimation from pediatric echocardiography through a five-block pipeline in which each component is independently motivated by the clinical and statistical structure of the data. The Convolutional DAE leverages the large unlabeled frame corpus to learn noise-robust anatomical representations. The CNN encoder extracts discriminative spatial features. The Bidirectional LSTM models the bidirectional temporal relationship between end-diastolic and end-systolic frames. The GRU compresses this sequence into a fixed-length representation by learning to emphasize clinically critical frames. The Sparse Autoencoder bottleneck provides regularization and produces interpretable codes connecting model behavior to clinical concepts. The full model achieves clinician-comparable test MAE = 6.74% and AUROC = 0.824 for dysfunction detection. The ablation study, reported transparently, exposes an instructive interaction between architectural depth and training budget — a finding consistent with the transfer-learning literature and a useful guide for any future scaling of the protocol.
-
----
-
-## 17. References
+## 14. References
 
 1. Duffy, G. et al. *Automated Pediatric Cardiac Function Assessment from Echocardiographic Videos.* Stanford University, 2022.
 2. Ouyang, D. et al. *Video-based AI for beat-to-beat assessment of cardiac function.* Nature, 580, 252–256, 2020.
@@ -639,7 +537,3 @@ EchoCardioNet-Peds addresses automated EF estimation from pediatric echocardiogr
 9. Loshchilov, I. & Hutter, F. *SGDR: Stochastic Gradient Descent with Warm Restarts.* ICLR, 2017.
 10. Srivastava, N. et al. *Dropout: A Simple Way to Prevent Neural Networks from Overfitting.* JMLR, 15(56):1929–1958, 2014.
 11. Goodfellow, I., Bengio, Y. & Courville, A. *Deep Learning.* MIT Press, 2016. (Chapters 9, 10, 14.)
-
----
-
-*Course: Deep Learning with Python (COE 443) — Term Project · Submitted May 2026.*
