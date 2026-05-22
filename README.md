@@ -4,6 +4,28 @@
 
 ---
 
+## Repository Layout
+
+```
+Solve_2/
+├── README.md                  # This document
+├── requirements.txt           # Pinned dependencies
+├── model/                     # Source code
+│   ├── blocks.py              # Block 1–5 module definitions
+│   ├── dataset.py             # AVI loader, augmentation pipeline
+│   ├── network.py             # Full pipeline assembly
+│   └── train.py               # Training, ablation, evaluation
+├── notebooks/notebook.ipynb   # End-to-end driver (Colab)
+├── docs/                      # Presentation script for the 3-minute talk
+├── results/
+│   ├── figures/               # All figures referenced in this report
+│   ├── checkpoints/           # (git-ignored; large) Per-variant .pt files
+│   └── final_metrics.json     # Numeric results
+└── presentation_assets/       # Generated assets for the 3-minute talk
+```
+
+---
+
 ## Abstract
 
 We present **EchoCardioNet-Peds**, a five-block deep learning pipeline for automated ejection fraction (EF) regression from pediatric echocardiography videos. The architecture integrates (1) a **Convolutional Denoising Autoencoder (DAE)** for unsupervised noise-robust representation learning, (2) a **CNN encoder** for discriminative spatial feature extraction, (3) a **Bidirectional LSTM** for long-range temporal context across the cardiac cycle, (4) a **GRU** for compact temporal summarization, and (5) a **Sparse Autoencoder bottleneck** for interpretable, regularized feature compression. We evaluate on the **EchoNet-Pediatric** dataset (Stanford, 2022 — 3,284 A4C-view videos, ages 0–18) and report test set performance using regression-appropriate metrics — MAE, RMSE, R² — together with AUROC for binary dysfunction detection (EF < 40%). The full pipeline achieves **MAE = 6.74%**, **RMSE = 9.97**, **R² = 0.26**, and **AUROC = 0.82** on the held-out test set, placing it within the ±5–8% inter-observer variability band of human cardiologists. A six-variant ablation study isolates the contribution of each component and reveals an instructive interaction between architectural depth and training budget. Source code, configuration, intermediate checkpoints, and reproducibility instructions accompany this report.
@@ -32,8 +54,7 @@ EchoCardioNet-Peds addresses automated EF estimation from pediatric echocardiogr
 10. [Training Protocol](#10-training-protocol)
 11. [Ablation Studies](#11-ablation-studies)
 12. [Evaluation](#12-evaluation)
-13. [Reproducibility](#13-reproducibility)
-14. [References](#14-references)
+13. [References](#13-references)
 
 ---
 
@@ -435,96 +456,7 @@ Inter-observer variability in manual EF tracing by cardiologists: **±5–8 perc
 
 ---
 
-## 13. Reproducibility
-
-### Software
-
-- Python 3.10 · PyTorch 2.1 · torchvision 0.16 · scikit-learn 1.3 · OpenCV 4.8 · NumPy 1.24 · pandas 2.0 · matplotlib 3.7 · seaborn 0.12
-- Full dependency pin: `requirements.txt`
-
-### Hardware
-
-- Training: NVIDIA T4 (Google Colab free tier), 16 GB VRAM
-- Wall-clock: ~45 min DAE pre-training + ~3 h fine-tuning for variant F
-
-### Random seeds
-
-- All variants seeded at `seed = 42` across `random`, `numpy`, `torch`, and `torch.cuda`.
-- `torch.backends.cudnn.deterministic = True` to maximize reproducibility (with a minor throughput cost).
-
-### Repository Layout
-
-```
-Solve_2/
-├── README.md                  # This document
-├── requirements.txt           # Pinned dependencies
-├── model/                     # Source code
-│   ├── blocks.py              # Block 1–5 module definitions
-│   ├── dataset.py             # AVI loader, augmentation pipeline
-│   ├── network.py             # Full pipeline assembly
-│   └── train.py               # Training, ablation, evaluation
-├── notebooks/notebook.ipynb   # End-to-end driver (Colab)
-├── docs/                      # Presentation script for the 3-minute talk
-├── results/
-│   ├── figures/               # All figures referenced in this report
-│   ├── checkpoints/           # (git-ignored; large) Per-variant .pt files
-│   └── final_metrics.json     # Numeric results
-└── presentation_assets/       # Generated assets for the 3-minute talk
-```
-
-### Quick Start
-
-**Step 1 — Prerequisites**
-
-```bash
-pip install -r requirements.txt
-```
-
-The core stack is PyTorch 2.1, torchvision 0.16, OpenCV 4.8, scikit-learn 1.3, pandas 2.0, and matplotlib 3.7.
-
-**Step 2 — Dataset**
-
-Register for the EchoNet-Pediatric Research Use Agreement and download the data from Stanford AIMI:
-
-> <https://echonet.github.io/pediatric/>
-
-Extract the archive so the on-disk layout matches:
-
-```
-data/pediatric_echo_avi/
-├── A4C/
-│   ├── Videos/                     # 3,284 AVI files
-│   ├── FileList.csv                # EF, Age, Sex, Split columns
-│   └── VolumeTracings.csv          # Expert ED/ES contours
-└── PSAX/                           # (supplementary; not used here)
-```
-
-**Step 3 — Run the End-to-End Pipeline**
-
-The recommended path is the Colab driver notebook (uses Phase-1 + Phase-2 of §10 automatically):
-
-```bash
-jupyter notebook notebooks/notebook.ipynb
-```
-
-For headless execution from the CLI:
-
-```bash
-# Phase 1 — DAE pre-training (10 epochs, Block 1 only)
-python -m model.train --phase pretrain
-
-# Phase 2 — End-to-end fine-tuning of the full pipeline (15 epochs, variant F)
-python -m model.train --phase finetune --variant F
-
-# Ablation — variants A–E at the 8-epoch budget (see §11.3)
-python -m model.train --phase ablation
-```
-
-All numeric results land in `results/final_metrics.json`; all figures land in `results/figures/`.
-
----
-
-## 14. References
+## 13. References
 
 1. Duffy, G. et al. *Automated Pediatric Cardiac Function Assessment from Echocardiographic Videos.* Stanford University, 2022.
 2. Ouyang, D. et al. *Video-based AI for beat-to-beat assessment of cardiac function.* Nature, 580, 252–256, 2020.
