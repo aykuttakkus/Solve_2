@@ -112,17 +112,6 @@ data/pediatric_echo_avi/
     └── VolumeTracings.csv
 ```
 
-### Dataset Statistics
-
-| Property | Value |
-|----------|-------|
-| Total A4C videos | 3,284 |
-| EF range | 7.02% – 72.99% |
-| EF mean ± std | 60.94 ± 10.53% |
-| Age range | 0 – 18 years |
-| Sex distribution | 57% M · 42% F · 1% Other |
-| Native frame rate | ~30 FPS |
-
 ### Clinical Distribution (Class Imbalance)
 
 | EF Category | Count | Percentage |
@@ -136,18 +125,6 @@ The 85 / 15 imbalance directly motivates the multi-task head in Block 5 (regress
 ### Annotations
 
 `VolumeTracings.csv` provides expert ED- and ES-frame ventricular contours (~20 points per frame, 2 frames per video) used only at evaluation time to ground-truth qualitative analyses (contour comparisons) — **never as training labels**.
-
-### Train / Validation / Test Split
-
-Pre-assigned 10-fold structure via the `Split` column. We follow the dataset's canonical partitioning verbatim to ensure comparability with prior work:
-
-| Set | Split values | Videos |
-|-----|--------------|--------|
-| Train | 0 – 7 | 2,548 |
-| Validation | 8 | 336 |
-| Test | 9 | 368 |
-
-The test partition is held out entirely; all reported test metrics correspond to a single inference pass with no per-test-sample tuning.
 
 ---
 
