@@ -50,11 +50,10 @@ EchoCardioNet-Peds addresses automated EF estimation from pediatric echocardiogr
 6. [Methods](#6-methods)
 7. [Architecture](#7-architecture)
 8. [Hyperparameter Selection](#8-hyperparameter-selection)
-9. [Regularization Strategy](#9-regularization-strategy)
-10. [Training Protocol](#10-training-protocol)
-11. [Ablation Studies](#11-ablation-studies)
-12. [Evaluation](#12-evaluation)
-13. [References](#13-references)
+9. [Training Protocol](#9-training-protocol)
+10. [Ablation Studies](#10-ablation-studies)
+11. [Evaluation](#11-evaluation)
+12. [References](#12-references)
 
 ---
 
@@ -297,31 +296,7 @@ All hyperparameters were selected against the validation split. Each choice has 
 
 ---
 
-## 9. Regularization Strategy
-
-The model uses a **six-layer regularization stack**, applied at distinct architectural depths to address different failure modes:
-
-| Technique | Location | Failure mode it mitigates |
-|-----------|----------|---------------------------|
-| Batch Normalization | After every Conv layer | Internal covariate shift; enables higher LR |
-| Dropout (p = 0.3) | Regression head | Overfitting in fully connected layers |
-| L1 sparsity (λ = 0.05) | Sparse AE codes | Co-adaptation of bottleneck features |
-| Weight decay (1 × 10⁻⁴) | All parameters | Unbounded parameter magnitude |
-| Gradient clipping (norm = 1.0) | All parameters | Exploding gradients in recurrent blocks |
-| Augmentation | Input pipeline | Domain shift between echo machines |
-
-**Augmentation details (training only):**
-
-| Transform | Parameters | Rationale |
-|-----------|-----------|-----------|
-| Random horizontal flip | p = 0.5 | A4C view is approximately left-right symmetric |
-| Brightness jitter | ±10% | Simulates gain variation across acquisition devices |
-| Gaussian noise | σ = 0.3 | Required for DAE objective; additionally regularizes CNN |
-| Random temporal crop | T' = 28 of 32 | Sequence-level augmentation; mitigates phase-locking |
-
----
-
-## 10. Training Protocol
+## 9. Training Protocol
 
 ### Phase 1 — DAE Pre-training (Block 1 only)
 
@@ -364,11 +339,11 @@ For each video:
 
 ---
 
-## 11. Ablation Studies
+## 10. Ablation Studies
 
 Six model variants are trained with identical random seeds, data splits, and ablation epoch budgets. Each variant adds exactly one block over the previous variant.
 
-### 11.1 Variants
+### 10.1 Variants
 
 | ID | Name | Change from previous | Training |
 |----|------|----------------------|----------|
@@ -379,7 +354,7 @@ Six model variants are trained with identical random seeds, data splits, and abl
 | E | + Sparse AE | FC bottleneck → Sparse AE bottleneck | 8 ep |
 | **F** | **Full model** | All blocks + DAE pre-training | **15 ep** |
 
-### 11.2 Results
+### 10.2 Results
 
 A **mean-predictor baseline** (always output 60.9%, the training EF mean) is included to ground R² in absolute terms.
 
@@ -393,7 +368,7 @@ A **mean-predictor baseline** (always output 60.9%, the training EF mean) is inc
 | E — + Sparse AE | 8 ep | 7.081 | 11.047 | +0.091 |
 | **F — Full** | **15 ep + DAE pre-train** | **6.742** | **9.969** | **+0.260** |
 
-### 11.3 Honest Reading of the Ablation
+### 10.3 Honest Reading of the Ablation
 
 Two patterns deserve direct comment.
 
@@ -405,9 +380,9 @@ We report this honestly rather than presenting a misleadingly clean ablation. Th
 
 ---
 
-## 12. Evaluation
+## 11. Evaluation
 
-### 12.1 Metrics — Why Not Accuracy?
+### 11.1 Metrics — Why Not Accuracy?
 
 EF estimation is a **regression** problem: the target is a continuous value, so "right vs. wrong" is not meaningful. We use error-magnitude metrics plus AUROC for the auxiliary binary task:
 
@@ -418,7 +393,7 @@ EF estimation is a **regression** problem: the target is a continuous value, so 
 | R² | `1 − SSres / SStot` | Proportion of EF variance explained; R² = 0 ⇔ mean-predictor | ↑ |
 | AUROC | Area under ROC | Dysfunction detection (EF < 40%); threshold-free | ↑ |
 
-### 12.2 Test-Set Results (Variant F)
+### 11.2 Test-Set Results (Variant F)
 
 | | MAE (%) | RMSE | R² | AUROC |
 |--|---------|------|----|----- |
@@ -427,13 +402,13 @@ EF estimation is a **regression** problem: the target is a continuous value, so 
 
 The validation–test gap is narrow (ΔMAE = 0.91 percentage points), indicating no severe overfitting.
 
-### 12.3 Clinical Benchmark
+### 11.3 Clinical Benchmark
 
 Inter-observer variability in manual EF tracing by cardiologists: **±5–8 percentage points (MAE)**. A model with test MAE < 5% reaches **clinician-level** performance; 5–8% is **clinician-comparable**. Our test MAE of 6.74% sits comfortably inside this band.
 
 ---
 
-## 13. References
+## 12. References
 
 1. Duffy, G. et al. *Automated Pediatric Cardiac Function Assessment from Echocardiographic Videos.* Stanford University, 2022.
 2. Ouyang, D. et al. *Video-based AI for beat-to-beat assessment of cardiac function.* Nature, 580, 252–256, 2020.
