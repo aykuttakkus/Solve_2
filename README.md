@@ -8,20 +8,21 @@
 
 ```
 Solve_2/
-├── README.md                  # This document
-├── requirements.txt           # Pinned dependencies
+├── docs/                      # Presentation script for the 3-minute talk
 ├── model/                     # Source code
 │   ├── blocks.py              # Block 1–5 module definitions
 │   ├── dataset.py             # AVI loader, augmentation pipeline
 │   ├── network.py             # Full pipeline assembly
 │   └── train.py               # Training, ablation, evaluation
 ├── notebooks/notebook.ipynb   # End-to-end driver (Colab)
-├── docs/                      # Presentation script for the 3-minute talk
+├── presentation_assets/       # Generated assets for the 3-minute talk
 ├── results/
 │   ├── figures/               # All figures referenced in this report
 │   ├── checkpoints/           # (git-ignored; large) Per-variant .pt files
 │   └── final_metrics.json     # Numeric results
-└── presentation_assets/       # Generated assets for the 3-minute talk
+├── .gitignore
+├── README.md                  # This document
+└── requirements.txt           # Pinned dependencies
 ```
 
 ---
